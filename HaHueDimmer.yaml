@@ -1,7 +1,7 @@
 blueprint:
   domain: automation
   name: Philips Hue v2 Smart Dimmer Switch and Remote
-  description: Philips Hue v2 Smart Dimmer Switch and Remote (RWL022) using Zigbee Home Automation
+  description: Philips Hue v2 Smart Dimmer Switch and Remote (RWL021) using Zigbee Home Automation
   input:
     zha_device:
       name: Philips Hue v2 Smart Dimmer Switch and Remote
@@ -9,7 +9,7 @@ blueprint:
       selector:
         device:
           integration: zha
-          model: RWL020
+          model: RWL021
     Power_Press:
       name: Power Press
       description: Power button pressed
