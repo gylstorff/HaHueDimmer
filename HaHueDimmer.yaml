@@ -1,146 +1,52 @@
 blueprint:
   domain: automation
-  name: Philips Hue v2 Smart Dimmer Switch and Remote (RWL021) - ZHA
-  description: >
-    Philips Hue v2 Smart Dimmer Switch and Remote (RWL021) using ZHA zha_event.
-    Hardened against missing args fields and maps ZHA commands to press types.
+  name: Hue Dimmer RWL021 — Clean ZHA Version
+  description: Stable Philips Hue Dimmer RWL021 handler (ZHA, cluster 6 & 8)
   input:
     zha_device:
-      name: Philips Hue v2 Smart Dimmer Switch and Remote
+      name: Hue RWL021 device
       selector:
         device:
           integration: zha
           model: RWL021
 
     Power_Press:
-      name: Power Press
-      default: []
-      selector: { action: {} }
-    Power_Press2x:
-      name: Power Press 2x
-      default: []
-      selector: { action: {} }
-    Power_Press3x:
-      name: Power Press 3x
-      default: []
-      selector: { action: {} }
-    Power_Press4x:
-      name: Power Press 4x
-      default: []
-      selector: { action: {} }
-    Power_Press5x:
-      name: Power Press 5x
-      default: []
-      selector: { action: {} }
-    Power_Release:
-      name: Power Release
-      default: []
-      selector: { action: {} }
-    Power_HoldPress:
-      name: Power Hold
-      default: []
-      selector: { action: {} }
-    Power_HoldRelease:
-      name: Power Hold Release
-      default: []
-      selector: { action: {} }
-
-    Up_Press:
-      name: Up Press
-      default: []
-      selector: { action: {} }
-    Up_Press2x:
-      name: Up Press 2x
-      default: []
-      selector: { action: {} }
-    Up_Press3x:
-      name: Up Press 3x
-      default: []
-      selector: { action: {} }
-    Up_Press4x:
-      name: Up Press 4x
-      default: []
-      selector: { action: {} }
-    Up_Press5x:
-      name: Up Press 5x
-      default: []
-      selector: { action: {} }
-    Up_Release:
-      name: Up Release
-      default: []
-      selector: { action: {} }
-    Up_HoldPress:
-      name: Up Hold
-      default: []
-      selector: { action: {} }
-    Up_HoldRelease:
-      name: Up Hold Release
-      default: []
-      selector: { action: {} }
-
-    Down_Press:
-      name: Down Press
-      default: []
-      selector: { action: {} }
-    Down_Press2x:
-      name: Down Press 2x
-      default: []
-      selector: { action: {} }
-    Down_Press3x:
-      name: Down Press 3x
-      default: []
-      selector: { action: {} }
-    Down_Press4x:
-      name: Down Press 4x
-      default: []
-      selector: { action: {} }
-    Down_Press5x:
-      name: Down Press 5x
-      default: []
-      selector: { action: {} }
-    Down_Release:
-      name: Down Release
-      default: []
-      selector: { action: {} }
-    Down_HoldPress:
-      name: Down Hold
-      default: []
-      selector: { action: {} }
-    Down_HoldRelease:
-      name: Down Hold Release
+      name: Power — Press
       default: []
       selector: { action: {} }
 
     Hue_Press:
-      name: Hue Press
+      name: Hue (Bottom) — Press
       default: []
       selector: { action: {} }
-    Hue_Press2x:
-      name: Hue Press 2x
+
+    Up_Press:
+      name: Up — Press
       default: []
       selector: { action: {} }
-    Hue_Press3x:
-      name: Hue Press 3x
+
+    Down_Press:
+      name: Down — Press
       default: []
       selector: { action: {} }
-    Hue_Press4x:
-      name: Hue Press 4x
+
+    Up_Hold:
+      name: Up — Hold
       default: []
       selector: { action: {} }
-    Hue_Press5x:
-      name: Hue Press 5x
+
+    Down_Hold:
+      name: Down — Hold
       default: []
       selector: { action: {} }
-    Hue_Release:
-      name: Hue Release
+
+    Up_Release:
+      name: Up — Release
       default: []
       selector: { action: {} }
-    Hue_HoldPress:
-      name: Hue Hold
-      default: []
-      selector: { action: {} }
-    Hue_HoldRelease:
-      name: Hue Hold Release
+
+    Down_Release:
+      name: Down — Release
       default: []
       selector: { action: {} }
 
@@ -157,185 +63,65 @@ trigger:
 condition:
   - condition: template
     value_template: >
-      {{ (trigger.event.data.device_id | default('')) == target_device_id }}
+      {{ trigger.event.data.device_id == target_device_id }}
 
 action:
   - variables:
-      # Raw ZHA event fields (safe defaults)
-      zha_command: "{{ trigger.event.data.command | default('') }}"
-      cluster_id: "{{ trigger.event.data.cluster_id | default(-1) }}"
-      endpoint_id: "{{ trigger.event.data.endpoint_id | default(-1) }}"
+      cmd: "{{ trigger.event.data.command | default('') }}"
+      cluster: "{{ trigger.event.data.cluster_id | int(0) }}"
       args: "{{ trigger.event.data.args | default([]) }}"
-      params: "{{ trigger.event.data.params | default({}) }}"
-      event_device_id: "{{ trigger.event.data.device_id | default('') }}"
-      event_ieee: "{{ trigger.event.data.device_ieee | default('') }}"
 
-      # Many ZHA events for this remote have args: [] (as in your trace),
-      # so never assume args.button / args.press_type exist.
-      #
-      # Try to infer direction for "step"/"move" commands (level cluster 8)
-      # by looking at args[0] if present:
-      #   positive => up, negative/0 => down (best-effort)
-      direction: >-
-        {% set a0 = (args[0] if (args is sequence and args|length>0) else none) %}
-        {% if a0 is number and a0 > 0 %}up{% else %}down{% endif %}
-
-      # Map ZHA to your higher-level command_type names.
-      # NOTE: this is best-effort; adjust mapping if your events differ.
-      command_type: >-
-        {% if zha_command == 'on' %}
-          on_press
-        {% elif zha_command == 'off' %}
-          off_press
-        {% elif zha_command in ['step', 'move'] and (cluster_id | int) == 8 %}
-          {{ direction }}_press
-        {% elif zha_command in ['stop', 'stop_with_on_off'] and (cluster_id | int) == 8 %}
-          {% if direction == 'up' %}up_short_release{% else %}down_short_release{% endif %}
+      # Determine direction for level cluster (8)
+      direction: >
+        {% if args | length > 0 and args[0] is number and args[0] > 0 %}
+          up
         {% else %}
-          unknown
+          down
         {% endif %}
 
-  # Safe logbook output (NEVER None)
-  - service: logbook.log
-    data:
-      name: ZHA
-      message: >-
-        cmd={{ zha_command }} type={{ command_type }} cluster={{ cluster_id }} ep={{ endpoint_id }}
-        device_id={{ event_device_id }} ieee={{ event_ieee }} args={{ args }} params={{ params }}
-
   - choose:
-      # POWER / ON button mapping
+
+      # POWER button (cluster 6)
       - conditions:
           - condition: template
-            value_template: "{{ command_type == 'on_press' }}"
+            value_template: "{{ cluster == 6 and cmd == 'on' }}"
         sequence: !input Power_Press
-      - conditions:
-          - condition: template
-            value_template: "{{ command_type == 'on_double_press' }}"
-        sequence: !input Power_Press2x
-      - conditions:
-          - condition: template
-            value_template: "{{ command_type == 'on_triple_press' }}"
-        sequence: !input Power_Press3x
-      - conditions:
-          - condition: template
-            value_template: "{{ command_type == 'on_quadruple_press' }}"
-        sequence: !input Power_Press4x
-      - conditions:
-          - condition: template
-            value_template: "{{ command_type == 'on_quintuple_press' }}"
-        sequence: !input Power_Press5x
-      - conditions:
-          - condition: template
-            value_template: "{{ command_type == 'on_short_release' }}"
-        sequence: !input Power_Release
-      - conditions:
-          - condition: template
-            value_template: "{{ command_type == 'on_hold' }}"
-        sequence: !input Power_HoldPress
-      - conditions:
-          - condition: template
-            value_template: "{{ command_type == 'on_long_release' }}"
-        sequence: !input Power_HoldRelease
 
-      # UP mapping
+      # HUE button (cluster 6)
       - conditions:
           - condition: template
-            value_template: "{{ command_type == 'up_press' }}"
-        sequence: !input Up_Press
-      - conditions:
-          - condition: template
-            value_template: "{{ command_type == 'up_double_press' }}"
-        sequence: !input Up_Press2x
-      - conditions:
-          - condition: template
-            value_template: "{{ command_type == 'up_triple_press' }}"
-        sequence: !input Up_Press3x
-      - conditions:
-          - condition: template
-            value_template: "{{ command_type == 'up_quadruple_press' }}"
-        sequence: !input Up_Press4x
-      - conditions:
-          - condition: template
-            value_template: "{{ command_type == 'up_quintuple_press' }}"
-        sequence: !input Up_Press5x
-      - conditions:
-          - condition: template
-            value_template: "{{ command_type == 'up_short_release' }}"
-        sequence: !input Up_Release
-      - conditions:
-          - condition: template
-            value_template: "{{ command_type == 'up_hold' }}"
-        sequence: !input Up_HoldPress
-      - conditions:
-          - condition: template
-            value_template: "{{ command_type == 'up_long_release' }}"
-        sequence: !input Up_HoldRelease
-
-      # DOWN mapping
-      - conditions:
-          - condition: template
-            value_template: "{{ command_type == 'down_press' }}"
-        sequence: !input Down_Press
-      - conditions:
-          - condition: template
-            value_template: "{{ command_type == 'down_double_press' }}"
-        sequence: !input Down_Press2x
-      - conditions:
-          - condition: template
-            value_template: "{{ command_type == 'down_triple_press' }}"
-        sequence: !input Down_Press3x
-      - conditions:
-          - condition: template
-            value_template: "{{ command_type == 'down_quadruple_press' }}"
-        sequence: !input Down_Press4x
-      - conditions:
-          - condition: template
-            value_template: "{{ command_type == 'down_quintuple_press' }}"
-        sequence: !input Down_Press5x
-      - conditions:
-          - condition: template
-            value_template: "{{ command_type == 'down_short_release' }}"
-        sequence: !input Down_Release
-      - conditions:
-          - condition: template
-            value_template: "{{ command_type == 'down_hold' }}"
-        sequence: !input Down_HoldPress
-      - conditions:
-          - condition: template
-            value_template: "{{ command_type == 'down_long_release' }}"
-        sequence: !input Down_HoldRelease
-
-      # HUE button mapping (often ZHA command is "off" for that button on some remotes)
-      - conditions:
-          - condition: template
-            value_template: "{{ command_type == 'off_press' }}"
+            value_template: "{{ cluster == 6 and cmd == 'off' }}"
         sequence: !input Hue_Press
+
+      # UP/DOWN HOLD (cluster 8 move)
       - conditions:
           - condition: template
-            value_template: "{{ command_type == 'off_double_press' }}"
-        sequence: !input Hue_Press2x
+            value_template: "{{ cluster == 8 and cmd == 'move' and direction == 'up' }}"
+        sequence: !input Up_Hold
+
       - conditions:
           - condition: template
-            value_template: "{{ command_type == 'off_triple_press' }}"
-        sequence: !input Hue_Press3x
+            value_template: "{{ cluster == 8 and cmd == 'move' and direction == 'down' }}"
+        sequence: !input Down_Hold
+
+      # UP/DOWN RELEASE (cluster 8 stop)
       - conditions:
           - condition: template
-            value_template: "{{ command_type == 'off_quadruple_press' }}"
-        sequence: !input Hue_Press4x
+            value_template: "{{ cluster == 8 and cmd in ['stop', 'stop_with_on_off'] and direction == 'up' }}"
+        sequence: !input Up_Release
+
       - conditions:
           - condition: template
-            value_template: "{{ command_type == 'off_quintuple_press' }}"
-        sequence: !input Hue_Press5x
+            value_template: "{{ cluster == 8 and cmd in ['stop', 'stop_with_on_off'] and direction == 'down' }}"
+        sequence: !input Down_Release
+
+      # Optional: treat quick step as press
       - conditions:
           - condition: template
-            value_template: "{{ command_type == 'off_short_release' }}"
-        sequence: !input Hue_Release
+            value_template: "{{ cluster == 8 and cmd == 'step' and direction == 'up' }}"
+        sequence: !input Up_Press
+
       - conditions:
           - condition: template
-            value_template: "{{ command_type == 'off_hold' }}"
-        sequence: !input Hue_HoldPress
-      - conditions:
-          - condition: template
-            value_template: "{{ command_type == 'off_long_release' }}"
-        sequence: !input Hue_HoldRelease
+            value_template: "{{ cluster == 8 and cmd == 'step' and direction == 'down' }}"
+        sequence: !input Down_Press
