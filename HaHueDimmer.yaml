@@ -27,18 +27,6 @@ blueprint:
     Power_5: { name: Power 5 clicks, default: [], selector: { action: {} } }
     Power_6: { name: Power 6 clicks, default: [], selector: { action: {} } }
 
-    Hue_1: { name: Hue 1 click, default: [], selector: { action: {} } }
-    Hue_2: { name: Hue 2 clicks, default: [], selector: { action: {} } }
-    Hue_3: { name: Hue 3 clicks, default: [], selector: { action: {} } }
-    Hue_4: { name: Hue 4 clicks, default: [], selector: { action: {} } }
-    Hue_5: { name: Hue 5 clicks, default: [], selector: { action: {} } }
-    Hue_6: { name: Hue 6 clicks, default: [], selector: { action: {} } }
-
-    Up_Hold: { name: Up Hold, default: [], selector: { action: {} } }
-    Up_Release: { name: Up Release, default: [], selector: { action: {} } }
-    Down_Hold: { name: Down Hold, default: [], selector: { action: {} } }
-    Down_Release: { name: Down Release, default: [], selector: { action: {} } }
-
 mode: restart
 max_exceeded: silent
 
@@ -60,136 +48,48 @@ action:
   - variables:
       cmd: "{{ trigger.event.data.command }}"
       cluster: "{{ trigger.event.data.cluster_id | int }}"
-      args: "{{ trigger.event.data.args | default([]) }}"
-      direction: >
-        {% if args|length > 0 and args[0] is number and args[0] > 0 %}
-          up
-        {% else %}
-          down
-        {% endif %}
 
-  - choose:
+  - if:
+      - condition: template
+        value_template: "{{ cluster == 6 and cmd == 'on' }}"
+    then:
 
-      #################################################
-      # POWER (cluster 6 + on)
-      #################################################
+      - variables:
+          clicks: 1
 
-      - conditions:
-          - condition: template
-            value_template: "{{ cluster == 6 and cmd == 'on' }}"
-        sequence:
+      - repeat:
+          count: 5
+          sequence:
+            - wait_for_trigger:
+                - platform: event
+                  event_type: zha_event
+              timeout:
+                milliseconds: !input click_window
+              continue_on_timeout: true
 
-          - variables:
-              clicks: 1
+            - if:
+                - condition: template
+                  value_template: >
+                    {{ wait.trigger is not none
+                       and wait.trigger.event.data.device_id == target_device
+                       and wait.trigger.event.data.cluster_id == 6
+                       and wait.trigger.event.data.command == 'on' }}
+              then:
+                - variables:
+                    clicks: "{{ clicks + 1 }}"
+              else:
+                - stop: "Done counting"
 
-          - repeat:
-              count: 5
-              sequence:
-                - wait_for_trigger:
-                    - platform: event
-                      event_type: zha_event
-                  timeout:
-                    milliseconds: !input click_window
-                  continue_on_timeout: true
-
-                - choose:
-                    - conditions:
-                        - condition: template
-                          value_template: >
-                            {{ wait.trigger is not none
-                               and wait.trigger.event.data.device_id == target_device
-                               and wait.trigger.event.data.cluster_id == 6
-                               and wait.trigger.event.data.command == 'on' }}
-                      sequence:
-                        - variables:
-                            clicks: "{{ clicks + 1 }}"
-                    - default:
-                        - stop: "Done counting"
-
-          - choose:
-              - conditions: [{ condition: template, value_template: "{{ clicks == 1 }}" }]
-                sequence: !input Power_1
-              - conditions: [{ condition: template, value_template: "{{ clicks == 2 }}" }]
-                sequence: !input Power_2
-              - conditions: [{ condition: template, value_template: "{{ clicks == 3 }}" }]
-                sequence: !input Power_3
-              - conditions: [{ condition: template, value_template: "{{ clicks == 4 }}" }]
-                sequence: !input Power_4
-              - conditions: [{ condition: template, value_template: "{{ clicks == 5 }}" }]
-                sequence: !input Power_5
-              - conditions: [{ condition: template, value_template: "{{ clicks >= 6 }}" }]
-                sequence: !input Power_6
-
-      #################################################
-      # HUE (cluster 6 + off)
-      #################################################
-
-      - conditions:
-          - condition: template
-            value_template: "{{ cluster == 6 and cmd == 'off' }}"
-        sequence:
-
-          - variables:
-              clicks: 1
-
-          - repeat:
-              count: 5
-              sequence:
-                - wait_for_trigger:
-                    - platform: event
-                      event_type: zha_event
-                  timeout:
-                    milliseconds: !input click_window
-                  continue_on_timeout: true
-
-                - choose:
-                    - conditions:
-                        - condition: template
-                          value_template: >
-                            {{ wait.trigger is not none
-                               and wait.trigger.event.data.device_id == target_device
-                               and wait.trigger.event.data.cluster_id == 6
-                               and wait.trigger.event.data.command == 'off' }}
-                      sequence:
-                        - variables:
-                            clicks: "{{ clicks + 1 }}"
-                    - default:
-                        - stop: "Done counting"
-
-          - choose:
-              - conditions: [{ condition: template, value_template: "{{ clicks == 1 }}" }]
-                sequence: !input Hue_1
-              - conditions: [{ condition: template, value_template: "{{ clicks == 2 }}" }]
-                sequence: !input Hue_2
-              - conditions: [{ condition: template, value_template: "{{ clicks == 3 }}" }]
-                sequence: !input Hue_3
-              - conditions: [{ condition: template, value_template: "{{ clicks == 4 }}" }]
-                sequence: !input Hue_4
-              - conditions: [{ condition: template, value_template: "{{ clicks == 5 }}" }]
-                sequence: !input Hue_5
-              - conditions: [{ condition: template, value_template: "{{ clicks >= 6 }}" }]
-                sequence: !input Hue_6
-
-      #################################################
-      # HOLD + RELEASE (cluster 8)
-      #################################################
-
-      - conditions:
-          - condition: template
-            value_template: "{{ cluster == 8 and cmd == 'move' and direction == 'up' }}"
-        sequence: !input Up_Hold
-
-      - conditions:
-          - condition: template
-            value_template: "{{ cluster == 8 and cmd == 'move' and direction == 'down' }}"
-        sequence: !input Down_Hold
-
-      - conditions:
-          - condition: template
-            value_template: "{{ cluster == 8 and cmd in ['stop','stop_with_on_off'] and direction == 'up' }}"
-        sequence: !input Up_Release
-
-      - conditions:
-          - condition: template
-            value_template: "{{ cluster == 8 and cmd in ['stop','stop_with_on_off'] and direction == 'down' }}"
-        sequence: !input Down_Release
+      - choose:
+          - conditions: [{ condition: template, value_template: "{{ clicks == 1 }}" }]
+            sequence: !input Power_1
+          - conditions: [{ condition: template, value_template: "{{ clicks == 2 }}" }]
+            sequence: !input Power_2
+          - conditions: [{ condition: template, value_template: "{{ clicks == 3 }}" }]
+            sequence: !input Power_3
+          - conditions: [{ condition: template, value_template: "{{ clicks == 4 }}" }]
+            sequence: !input Power_4
+          - conditions: [{ condition: template, value_template: "{{ clicks == 5 }}" }]
+            sequence: !input Power_5
+          - conditions: [{ condition: template, value_template: "{{ clicks >= 6 }}" }]
+            sequence: !input Power_6
