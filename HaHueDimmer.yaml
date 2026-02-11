@@ -1,9 +1,7 @@
-blueprint: 
+blueprint:
   domain: automation
-  name: Hue RWL021 — Advanced (Up to 6 Clicks)
-  description: >
-    Handles Philips Hue Dimmer RWL021 in raw ZHA mode.
-    Supports 1–6 clicks per button + hold + release.
+  name: Hue RWL021 — 6 Click Stable
+  description: Supports up to 6 clicks + hold/release for RWL021 (ZHA raw mode)
 
   input:
     zha_device:
@@ -22,27 +20,24 @@ blueprint:
           max: 1000
           unit_of_measurement: ms
 
-    # POWER (cluster 6, command "on")
-    Power_1: { name: Power — 1 click, default: [], selector: { action: {} } }
-    Power_2: { name: Power — 2 clicks, default: [], selector: { action: {} } }
-    Power_3: { name: Power — 3 clicks, default: [], selector: { action: {} } }
-    Power_4: { name: Power — 4 clicks, default: [], selector: { action: {} } }
-    Power_5: { name: Power — 5 clicks, default: [], selector: { action: {} } }
-    Power_6: { name: Power — 6 clicks, default: [], selector: { action: {} } }
+    Power_1: { name: Power 1 click, default: [], selector: { action: {} } }
+    Power_2: { name: Power 2 clicks, default: [], selector: { action: {} } }
+    Power_3: { name: Power 3 clicks, default: [], selector: { action: {} } }
+    Power_4: { name: Power 4 clicks, default: [], selector: { action: {} } }
+    Power_5: { name: Power 5 clicks, default: [], selector: { action: {} } }
+    Power_6: { name: Power 6 clicks, default: [], selector: { action: {} } }
 
-    # HUE (cluster 6, command "off")
-    Hue_1: { name: Hue — 1 click, default: [], selector: { action: {} } }
-    Hue_2: { name: Hue — 2 clicks, default: [], selector: { action: {} } }
-    Hue_3: { name: Hue — 3 clicks, default: [], selector: { action: {} } }
-    Hue_4: { name: Hue — 4 clicks, default: [], selector: { action: {} } }
-    Hue_5: { name: Hue — 5 clicks, default: [], selector: { action: {} } }
-    Hue_6: { name: Hue — 6 clicks, default: [], selector: { action: {} } }
+    Hue_1: { name: Hue 1 click, default: [], selector: { action: {} } }
+    Hue_2: { name: Hue 2 clicks, default: [], selector: { action: {} } }
+    Hue_3: { name: Hue 3 clicks, default: [], selector: { action: {} } }
+    Hue_4: { name: Hue 4 clicks, default: [], selector: { action: {} } }
+    Hue_5: { name: Hue 5 clicks, default: [], selector: { action: {} } }
+    Hue_6: { name: Hue 6 clicks, default: [], selector: { action: {} } }
 
-    # HOLD + RELEASE
-    Up_Hold: { name: Up — Hold, default: [], selector: { action: {} } }
-    Up_Release: { name: Up — Release, default: [], selector: { action: {} } }
-    Down_Hold: { name: Down — Hold, default: [], selector: { action: {} } }
-    Down_Release: { name: Down — Release, default: [], selector: { action: {} } }
+    Up_Hold: { name: Up Hold, default: [], selector: { action: {} } }
+    Up_Release: { name: Up Release, default: [], selector: { action: {} } }
+    Down_Hold: { name: Down Hold, default: [], selector: { action: {} } }
+    Down_Release: { name: Down Release, default: [], selector: { action: {} } }
 
 mode: restart
 max_exceeded: silent
@@ -61,6 +56,7 @@ condition:
       {{ trigger.event.data.device_id == target_device }}
 
 action:
+
   - variables:
       cmd: "{{ trigger.event.data.command }}"
       cluster: "{{ trigger.event.data.cluster_id | int }}"
@@ -74,13 +70,15 @@ action:
 
   - choose:
 
-      #########################################################
-      # POWER BUTTON (cluster 6 + "on")
-      #########################################################
+      #################################################
+      # POWER (cluster 6 + on)
+      #################################################
 
       - conditions:
-          - "{{ cluster == 6 and cmd == 'on' }}"
+          - condition: template
+            value_template: "{{ cluster == 6 and cmd == 'on' }}"
         sequence:
+
           - variables:
               clicks: 1
 
@@ -96,37 +94,41 @@ action:
 
                 - choose:
                     - conditions:
-                        - "{{ wait.trigger is not none }}"
-                        - "{{ wait.trigger.event.data.device_id == target_device }}"
-                        - "{{ wait.trigger.event.data.cluster_id == 6 }}"
-                        - "{{ wait.trigger.event.data.command == 'on' }}"
+                        - condition: template
+                          value_template: >
+                            {{ wait.trigger is not none
+                               and wait.trigger.event.data.device_id == target_device
+                               and wait.trigger.event.data.cluster_id == 6
+                               and wait.trigger.event.data.command == 'on' }}
                       sequence:
                         - variables:
                             clicks: "{{ clicks + 1 }}"
                     - default:
-                        - stop: "Click window expired"
+                        - stop: "Done counting"
 
           - choose:
-              - conditions: "{{ clicks == 1 }}"
+              - conditions: [{ condition: template, value_template: "{{ clicks == 1 }}" }]
                 sequence: !input Power_1
-              - conditions: "{{ clicks == 2 }}"
+              - conditions: [{ condition: template, value_template: "{{ clicks == 2 }}" }]
                 sequence: !input Power_2
-              - conditions: "{{ clicks == 3 }}"
+              - conditions: [{ condition: template, value_template: "{{ clicks == 3 }}" }]
                 sequence: !input Power_3
-              - conditions: "{{ clicks == 4 }}"
+              - conditions: [{ condition: template, value_template: "{{ clicks == 4 }}" }]
                 sequence: !input Power_4
-              - conditions: "{{ clicks == 5 }}"
+              - conditions: [{ condition: template, value_template: "{{ clicks == 5 }}" }]
                 sequence: !input Power_5
-              - conditions: "{{ clicks >= 6 }}"
+              - conditions: [{ condition: template, value_template: "{{ clicks >= 6 }}" }]
                 sequence: !input Power_6
 
-      #########################################################
-      # HUE BUTTON (cluster 6 + "off")
-      #########################################################
+      #################################################
+      # HUE (cluster 6 + off)
+      #################################################
 
       - conditions:
-          - "{{ cluster == 6 and cmd == 'off' }}"
+          - condition: template
+            value_template: "{{ cluster == 6 and cmd == 'off' }}"
         sequence:
+
           - variables:
               clicks: 1
 
@@ -142,46 +144,52 @@ action:
 
                 - choose:
                     - conditions:
-                        - "{{ wait.trigger is not none }}"
-                        - "{{ wait.trigger.event.data.device_id == target_device }}"
-                        - "{{ wait.trigger.event.data.cluster_id == 6 }}"
-                        - "{{ wait.trigger.event.data.command == 'off' }}"
+                        - condition: template
+                          value_template: >
+                            {{ wait.trigger is not none
+                               and wait.trigger.event.data.device_id == target_device
+                               and wait.trigger.event.data.cluster_id == 6
+                               and wait.trigger.event.data.command == 'off' }}
                       sequence:
                         - variables:
                             clicks: "{{ clicks + 1 }}"
                     - default:
-                        - stop: "Click window expired"
+                        - stop: "Done counting"
 
           - choose:
-              - conditions: "{{ clicks == 1 }}"
+              - conditions: [{ condition: template, value_template: "{{ clicks == 1 }}" }]
                 sequence: !input Hue_1
-              - conditions: "{{ clicks == 2 }}"
+              - conditions: [{ condition: template, value_template: "{{ clicks == 2 }}" }]
                 sequence: !input Hue_2
-              - conditions: "{{ clicks == 3 }}"
+              - conditions: [{ condition: template, value_template: "{{ clicks == 3 }}" }]
                 sequence: !input Hue_3
-              - conditions: "{{ clicks == 4 }}"
+              - conditions: [{ condition: template, value_template: "{{ clicks == 4 }}" }]
                 sequence: !input Hue_4
-              - conditions: "{{ clicks == 5 }}"
+              - conditions: [{ condition: template, value_template: "{{ clicks == 5 }}" }]
                 sequence: !input Hue_5
-              - conditions: "{{ clicks >= 6 }}"
+              - conditions: [{ condition: template, value_template: "{{ clicks >= 6 }}" }]
                 sequence: !input Hue_6
 
-      #########################################################
+      #################################################
       # HOLD + RELEASE (cluster 8)
-      #########################################################
+      #################################################
 
       - conditions:
-          - "{{ cluster == 8 and cmd == 'move' and direction == 'up' }}"
+          - condition: template
+            value_template: "{{ cluster == 8 and cmd == 'move' and direction == 'up' }}"
         sequence: !input Up_Hold
 
       - conditions:
-          - "{{ cluster == 8 and cmd == 'move' and direction == 'down' }}"
+          - condition: template
+            value_template: "{{ cluster == 8 and cmd == 'move' and direction == 'down' }}"
         sequence: !input Down_Hold
 
       - conditions:
-          - "{{ cluster == 8 and cmd in ['stop','stop_with_on_off'] and direction == 'up' }}"
+          - condition: template
+            value_template: "{{ cluster == 8 and cmd in ['stop','stop_with_on_off'] and direction == 'up' }}"
         sequence: !input Up_Release
 
       - conditions:
-          - "{{ cluster == 8 and cmd in ['stop','stop_with_on_off'] and direction == 'down' }}"
+          - condition: template
+            value_template: "{{ cluster == 8 and cmd in ['stop','stop_with_on_off'] and direction == 'down' }}"
         sequence: !input Down_Release
